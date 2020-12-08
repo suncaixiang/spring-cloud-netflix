@@ -31,6 +31,9 @@ import org.springframework.context.annotation.Import;
  * @author Dave Syer
  * @author Biju Kunjummen
  *
+ *
+ * eureka server注解，表示eureka server端。
+ *
  */
 
 @Target(ElementType.TYPE)

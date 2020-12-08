@@ -42,6 +42,7 @@ public class EurekaServiceRegistry implements ServiceRegistry<EurekaRegistration
 					+ " with eureka with status " + reg.getInstanceConfig().getInitialStatus());
 		}
 
+		//注册服务代码
 		reg.getApplicationInfoManager().setInstanceStatus(reg.getInstanceConfig().getInitialStatus());
 
 		reg.getHealthCheckHandler()
