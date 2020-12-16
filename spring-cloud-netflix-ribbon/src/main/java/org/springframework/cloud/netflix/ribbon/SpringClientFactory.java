@@ -32,6 +32,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
  * creates a Spring ApplicationContext per client name, and extracts the beans that it
  * needs from there.
  *
+ * 对每隔服务名称，对于一个spring applicationContext上下文。
+ * 需要对应的bean时，从SpringClientFactory中提取
+ *
  * @author Spencer Gibb
  * @author Dave Syer
  */
@@ -62,6 +65,9 @@ public class SpringClientFactory extends NamedContextFactory<RibbonClientSpecifi
 	 * @throws RuntimeException if any error occurs
 	 */
 	public ILoadBalancer getLoadBalancer(String name) {
+		//从独立的spring applicationContext中获取ILoadBalancer的bean。
+		//ILoadBalancer的bean的构建是在RibbonClientConfiguration中初始化构建的
+		//创建的是ZoneAwareLoadBalancer
 		return getInstance(name, ILoadBalancer.class);
 	}
 
@@ -116,8 +122,16 @@ public class SpringClientFactory extends NamedContextFactory<RibbonClientSpecifi
 		return result;
 	}
 
+	/**
+	 *
+	 * @param name
+	 * @param type
+	 * @param <C>
+	 * @return
+	 */
 	@Override
 	public <C> C getInstance(String name, Class<C> type) {
+		//从独立的上下文中获取，对于的服务实例bean
 		C instance = super.getInstance(name, type);
 		if (instance != null) {
 			return instance;

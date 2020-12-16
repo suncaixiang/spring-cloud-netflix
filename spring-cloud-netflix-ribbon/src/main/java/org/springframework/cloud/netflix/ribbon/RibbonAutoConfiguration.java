@@ -52,6 +52,13 @@ import org.springframework.web.client.RestTemplate;
 /**
  * Auto configuration for Ribbon (client side load balancing).
  *
+ * 在EurekaClientAutoConfiguration装配后之后，执行RibbonAutoConfiguration装配
+ *
+ * LoadBalancerAutoConfiguration，和AsyncLoadBalancerAutoConfiguration，在执行RibbonAutoConfiguration装配之后执行
+ *
+ *
+ * 因为LoadBalancerAutoConfiguration中的LoanBalancerClient是在RibbonAutoConfiguration构造的。
+ *
  * @author Spencer Gibb
  * @author Dave Syer
  * @author Biju Kunjummen
@@ -86,6 +93,10 @@ public class RibbonAutoConfiguration {
 		return factory;
 	}
 
+	/**
+	 * 构造初始化了RibbonLoadBalancerClient
+	 * @return
+	 */
 	@Bean
 	@ConditionalOnMissingBean(LoadBalancerClient.class)
 	public LoadBalancerClient loadBalancerClient() {

@@ -35,6 +35,10 @@ import org.springframework.util.ReflectionUtils;
 import static org.springframework.cloud.netflix.ribbon.RibbonUtils.updateToSecureConnectionIfNeeded;
 
 /**
+ *
+ *
+ * 构造LoanBalancerClient，在restTemplate进行拦截时，构造的LoanBalancerClient。使用的就是RibbonLoadBalancerClient
+ *
  * @author Spencer Gibb
  * @author Dave Syer
  * @author Ryan Baxter
@@ -48,6 +52,12 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 		this.clientFactory = clientFactory;
 	}
 
+	/**
+	 * 重构了URI方法，在这边将URI进行替换成负载均衡后的IP地址
+	 * @param instance
+	 * @param original
+	 * @return
+	 */
 	@Override
 	public URI reconstructURI(ServiceInstance instance, URI original) {
 		Assert.notNull(instance, "instance can not be null");
@@ -70,6 +80,7 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 			uri = updateToSecureConnectionIfNeeded(original, clientConfig,
 					serverIntrospector, server);
 		}
+		//替换，将ServeName替换成负载均衡选择的IP和Port
 		return context.reconstructURIWithServer(server, uri);
 	}
 
@@ -113,11 +124,18 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 	 */
 	public <T> T execute(String serviceId, LoadBalancerRequest<T> request, Object hint)
 			throws IOException {
+		// serviceId---服务名称，类似于ServiceA
+		//1、根据服务名称获取一个ILoanBalance负载均衡器。获取的是ZoneAwareLoadBalancer
+		//是从springClientFactory中获取，springClientFactory存在一个map,map中存放的时一个服务名称对于一个独立的spring容器applicationContext上下文
+		//再根据ILoadBalancer从独立的上下文容器内，获取实例化的ILoadBalancer bean---ZoneAwareLoadBalancer
+		//获取到负载均衡器，构造时启动定时任务延时1s，每隔30s更新服务列表
 		ILoadBalancer loadBalancer = getLoadBalancer(serviceId);
+		//2、根据负载均衡器，获取到一个server
 		Server server = getServer(loadBalancer, hint);
 		if (server == null) {
 			throw new IllegalStateException("No instances available for " + serviceId);
 		}
+		//3、组装成RibbonServer，去执行请求
 		RibbonServer ribbonServer = new RibbonServer(serviceId, server,
 				isSecure(server, serviceId),
 				serverIntrospector(serviceId).getMetadata(server));
@@ -141,6 +159,7 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 		RibbonStatsRecorder statsRecorder = new RibbonStatsRecorder(context, server);
 
 		try {
+			//HttpRequest的调用
 			T returnVal = request.apply(serviceInstance);
 			statsRecorder.recordStats(returnVal);
 			return returnVal;
@@ -185,11 +204,16 @@ public class RibbonLoadBalancerClient implements LoadBalancerClient {
 		if (loadBalancer == null) {
 			return null;
 		}
-		// Use 'default' on a null hint, or just pass it on?
+		//使用构建的ILoadBalancer组件--ZoneAwareLoadBalancer组件
+		//PredicateBasedRule.choose选择一个服务
+		//incrementAndGetModulo，current = this.nextIndex.get(); next = (current + 1) % modulo;
+		//使用CAS---再设置nextIndex下标为next。
+		//通过负载均衡算法，选择一个Server.默认选择轮询算法
 		return loadBalancer.chooseServer(hint != null ? hint : "default");
 	}
 
 	protected ILoadBalancer getLoadBalancer(String serviceId) {
+		//根据springClientFactory获取ILoanBalancer
 		return this.clientFactory.getLoadBalancer(serviceId);
 	}
 

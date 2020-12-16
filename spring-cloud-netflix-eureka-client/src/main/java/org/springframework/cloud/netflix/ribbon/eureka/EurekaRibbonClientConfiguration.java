@@ -91,11 +91,20 @@ public class EurekaRibbonClientConfiguration {
 		if (this.propertiesFactory.isSet(IPing.class, serviceId)) {
 			return this.propertiesFactory.get(IPing.class, config, serviceId);
 		}
+		//创建ILoadBalancer时，使用的IPing。进行Server的检测
 		NIWSDiscoveryPing ping = new NIWSDiscoveryPing();
 		ping.initWithNiwsConfig(config);
 		return ping;
 	}
 
+	/**
+	 *
+	 * 构造获取注册表需要的ServerList
+	 *
+	 * @param config
+	 * @param eurekaClientProvider
+	 * @return
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public ServerList<?> ribbonServerList(IClientConfig config,
@@ -103,6 +112,7 @@ public class EurekaRibbonClientConfiguration {
 		if (this.propertiesFactory.isSet(ServerList.class, serviceId)) {
 			return this.propertiesFactory.get(ServerList.class, config, serviceId);
 		}
+
 		DiscoveryEnabledNIWSServerList discoveryServerList = new DiscoveryEnabledNIWSServerList(
 				config, eurekaClientProvider);
 		DomainExtractingServerList serverList = new DomainExtractingServerList(

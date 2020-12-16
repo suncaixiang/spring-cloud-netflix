@@ -106,6 +106,11 @@ public class RibbonClientConfiguration {
 		return config;
 	}
 
+	/**
+	 * 构造IRule，在构造ILoadBalancer时，使用的负载均衡算法
+	 * @param config
+	 * @return
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public IRule ribbonRule(IClientConfig config) {
@@ -126,6 +131,13 @@ public class RibbonClientConfiguration {
 		return new DummyPing();
 	}
 
+	/**
+	 * 初始化的ServerList----构造ILoadBalancer
+	 * 但是看到代码，发现不是读取eureka动态的server list。
+	 * 这个是配置的server list。
+	 * @param config
+	 * @return
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@SuppressWarnings("unchecked")
@@ -138,12 +150,32 @@ public class RibbonClientConfiguration {
 		return serverList;
 	}
 
+	/**
+	 * 构造实例化ServerListUpdater
+	 * 构造实例化ILoadBalancer时需要，服务ServerList更新组件
+	 *
+	 * @param config
+	 * @return
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public ServerListUpdater ribbonServerListUpdater(IClientConfig config) {
+		//PollingServerListUpdater，默认延迟1s，每隔30s更新服务列表
 		return new PollingServerListUpdater(config);
 	}
 
+	/**
+	 * 构造ILoanBalancer,创建的时ZoneAwareLoadBalancer
+	 *
+	 * @param config
+	 * @param serverList 需要的ServerList 在EurekaRibbonClientConfiguration中的DomainExtractingServerList，
+	 *                   因为这个ServerList必须实例化之后，才能被构造函数使用
+	 * @param serverListFilter
+	 * @param rule
+	 * @param ping
+	 * @param serverListUpdater
+	 * @return
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public ILoadBalancer ribbonLoadBalancer(IClientConfig config,
@@ -152,6 +184,14 @@ public class RibbonClientConfiguration {
 		if (this.propertiesFactory.isSet(ILoadBalancer.class, name)) {
 			return this.propertiesFactory.get(ILoadBalancer.class, config, name);
 		}
+		//ZoneAwareLoadBalancer构造函数中没有处理
+		//父类DynamicServerListLoadBalancer中有一个restOfInit方法，方法中存在updateListOfServers
+		//调用的时serverList.getUpdatedListOfServers---构造ServerList的实例，存在于EurekaRibbonClientConfiguration
+		//DiscoveryEnabledNIWSServerList.getUpdatedListOfServers（）
+		//根据服务名称调用eureka的DiscoveryClient获取注册表，获取服务列表
+		//根据serverListUpdater---PollingServerListUpdater。刷新服务列表，默认延迟1s,每隔30s刷新一次
+		//UpdateAction.doUpdate()---DynamicServerListLoadBalancer.this.updateListOfServers()--更新服务列表
+		//Rule使用的是--RibbonClientConfiguration.ZoneAvoidanceRule...在进行选择服务使用负载均衡算法时使用
 		return new ZoneAwareLoadBalancer<>(config, rule, ping, serverList,
 				serverListFilter, serverListUpdater);
 	}
